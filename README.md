@@ -53,3 +53,15 @@ Next steps
 - Replace placeholder visuals with exported assets from Figma
 - Fine-tune typography, spacings, and responsive breakpoints
 - Add routing and real content for articles, community forum, and search
+
+Auto-commit & push watcher
+---------------------------------
+This repository includes an optional watcher script that can automatically stage, commit, and push changes when files under `src/`, `server/`, or the top-level config files are modified.
+
+Use with caution — automatic commits and pushes can create noisy history or unintentionally publish sensitive changes. The watcher is implemented in `scripts/auto-commit-push.js` and can be started with:
+
+```powershell
+npm run auto-push
+```
+
+If you don't want this behavior, don't run the script. You can remove the script or delete `scripts/auto-commit-push.js` from the repo.

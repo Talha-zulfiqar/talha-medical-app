@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useSignupModal } from '../context/SignupModalContext'
 import { useNavigate } from 'react-router-dom'
 import { setAuth } from '../lib/auth'
+// using local server auth; Firebase removed to avoid invalid-api-key runtime errors
 
 export default function SignupModal(){
   const { open, closeModal } = useSignupModal()
@@ -36,42 +37,21 @@ export default function SignupModal(){
   if (!password) return setError('Please provide a password')
     setLoading(true)
     try {
-      // quick health check to show better diagnostics
-      try {
-        const ping = await fetch('/api/health')
-        if (!ping.ok) throw new Error(`health check failed: ${ping.status}`)
-      } catch (pingErr) {
-        setError('Backend unreachable: ' + (pingErr.message || pingErr))
-        setLoading(false)
-        return
-      }
-
-      const tryPost = async (url, payload) => fetch(url, {
+      // Always use server-side signup (local JWT flow)
+      const res = await fetch('/api/auth/signup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(payload)
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ email: String(email || '').trim().toLowerCase(), name, password })
       })
-
-      // Try direct backend first; fallback to relative path (vite proxy)
-      let res = await tryPost('http://127.0.0.1:4000/api/auth/signup', { email, name, password })
-      let ct = res.headers.get('content-type') || ''
-      if (!res.ok && (res.status === 404 || ct.includes('text/html'))) {
-        res = await tryPost('/api/auth/signup', { email, name, password })
-        ct = res.headers.get('content-type') || ''
-      }
-
       if (!res.ok) {
-        let body = ''
-        try { body = await res.text() } catch (e) {}
-        throw new Error(`Server error: ${res.status} ${res.statusText} (url: ${res.url})\n${body}`)
+        const body = await res.text().catch(() => '')
+        throw new Error(`Signup failed: ${res.status} ${res.statusText}\n${body}`)
       }
-  const data = await res.json()
-  setEmail('')
-  setName('')
-  setPassword('')
-  // persist token + user
-  try { setAuth({ token: data.token, user: data.user }) } catch (e) {}
-      // navigate to community and close modal
+      const data = await res.json()
+      setEmail('')
+      setName('')
+      setPassword('')
+      try { setAuth({ token: data.token, user: data.user }) } catch (e) {}
       setTimeout(() => {
         closeModal()
         navigate('/community')

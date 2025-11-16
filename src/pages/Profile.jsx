@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { getCurrentUser, getToken, clearCurrentUser, setAuth } from '../lib/auth'
+import { useNavigate } from 'react-router-dom'
 
 export default function Profile(){
   const [user, setUser] = useState(getCurrentUser())
@@ -40,6 +41,13 @@ export default function Profile(){
     } finally { setLoading(false) }
   }
 
+  function logout(){
+    clearCurrentUser()
+    // update UI and redirect to home
+    setUser(null)
+    navigate('/')
+  }
+
   if (!user) return (
     <div className="container" style={{padding:24}}>
       <h2>Profile</h2>
@@ -51,6 +59,9 @@ export default function Profile(){
     <div className="container" style={{padding:24}}>
       <h2>Your profile</h2>
       <p><strong>{user.name || user.email}</strong></p>
+      <div style={{marginBottom:12}}>
+        <button className="btn btn-ghost" onClick={logout}>Logout</button>
+      </div>
       <form onSubmit={saveProfile} style={{maxWidth:640}}>
         <label style={{display:'block',marginBottom:8}}>Bio
           <textarea value={bio} onChange={e => setBio(e.target.value)} className="input" rows={4} />

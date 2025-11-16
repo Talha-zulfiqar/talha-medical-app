@@ -22,11 +22,41 @@ const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret'
 
-function requireAuth(req, res, next){
+// Try to initialize firebase-admin (optional). If service account isn't provided
+// this module exports initialized=false and we fall back to local JWT verification.
+const fbAdmin = require('./firebaseAdmin')
+
+async function requireAuth(req, res, next){
   const auth = req.headers.authorization || ''
   const m = auth.match(/^Bearer\s+(.+)$/i)
   if (!m) return res.status(401).json({ error: 'Missing token' })
   const token = m[1]
+
+  // If firebase-admin is initialized, prefer verifying Firebase ID tokens
+  try {
+    if (fbAdmin && fbAdmin.auth && fbAdmin.apps && fbAdmin.apps.length > 0) {
+      try {
+        const decoded = await fbAdmin.auth().verifyIdToken(token)
+        // decoded contains uid and email
+        const email = decoded.email
+        let user = email ? db.findUserByEmail(email) : null
+        if (!user) {
+          // create a local user record for convenience (no passwordHash)
+          user = db.createUser({ email: email || '', name: decoded.name || '', passwordHash: '' })
+        }
+        req.user = db.getUserById(user.id)
+        return next()
+      } catch (err) {
+        // token wasn't a valid Firebase ID token; fall through to JWT fallback
+        console.warn('Firebase token verification failed, trying JWT fallback')
+      }
+    }
+  } catch (e) {
+    // ignore admin initialization errors and continue to JWT fallback
+    console.warn('Firebase admin check failed:', e && e.message)
+  }
+
+  // Fallback: verify local JWTs issued by this server
   try {
     const payload = jwt.verify(token, JWT_SECRET)
     req.user = db.getUserById(payload.sub)
@@ -74,10 +104,11 @@ app.post('/api/signup', (req, res) => {
 app.post('/api/auth/signup', async (req, res) => {
   const { email, name, password } = req.body
   if (!email || !password) return res.status(400).json({ error: 'Missing email or password' })
-  const existing = db.findUserByEmail(email)
+  const emailClean = String(email).trim().toLowerCase()
+  const existing = db.findUserByEmail(emailClean)
   if (existing) return res.status(400).json({ error: 'User already exists' })
   const passwordHash = await bcrypt.hash(password, 10)
-  const user = db.createUser({ email, name, passwordHash })
+  const user = db.createUser({ email: emailClean, name, passwordHash })
   const token = jwt.sign({ sub: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' })
   res.status(201).json({ token, user })
 })
@@ -86,7 +117,8 @@ app.post('/api/auth/signup', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body
   if (!email || !password) return res.status(400).json({ error: 'Missing email or password' })
-  const u = db.findUserByEmail(email)
+  const emailClean = String(email).trim().toLowerCase()
+  const u = db.findUserByEmail(emailClean)
   if (!u) return res.status(400).json({ error: 'Invalid credentials' })
   const ok = await bcrypt.compare(password, u.passwordHash || '')
   if (!ok) return res.status(400).json({ error: 'Invalid credentials' })

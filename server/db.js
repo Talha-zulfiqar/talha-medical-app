@@ -59,16 +59,18 @@ module.exports = {
   ,
   // user helpers
   findUserByEmail(email) {
-    return db.get('users').find({ email }).value()
+    const e = String(email || '').trim().toLowerCase()
+    return db.get('users').find(u => (u.email || '').toLowerCase() === e).value()
   },
   getUserById(id) {
     const nid = Number(id)
     return db.get('users').find({ id: nid }).value()
   },
   createUser({ email, name, passwordHash }) {
+    const emailClean = String(email || '').trim().toLowerCase()
     const item = {
       id: nextId('users'),
-      email,
+      email: emailClean,
       name: name || '',
       passwordHash: passwordHash || '',
       bio: '',

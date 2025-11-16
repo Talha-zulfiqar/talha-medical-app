@@ -91,7 +91,17 @@ export default function Header() {
           <Link to="/articles" onClick={() => setOpen(false)}>Articles</Link>
           <Link to="/community" onClick={() => setOpen(false)}>Community</Link>
           <div style={{marginTop:16}}>
-            <button className="btn btn-primary" onClick={() => { setOpen(false); openModal() }}>Get Started</button>
+            {!user ? (
+              <>
+                <button className="btn btn-primary" onClick={() => { setOpen(false); openModal() }}>Get Started</button>
+                <button className="btn btn-ghost" style={{marginLeft:8}} onClick={() => { setOpen(false); openLogin() }}>Log in</button>
+              </>
+            ) : (
+              <>
+                <Link to="/profile" onClick={() => setOpen(false)} className="btn btn-ghost">Profile</Link>
+                <button className="btn btn-ghost" onClick={() => { clearCurrentUser(); setUser(null); setOpen(false); navigate('/') }}>Logout</button>
+              </>
+            )}
           </div>
         </div>
       </div>

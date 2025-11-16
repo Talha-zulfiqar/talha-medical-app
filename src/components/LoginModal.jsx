@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useLoginModal } from '../context/LoginModalContext'
 import { useNavigate } from 'react-router-dom'
 import { setAuth } from '../lib/auth'
+// using local server auth; Firebase removed to avoid invalid-api-key runtime errors
 
 export default function LoginModal(){
   const { open, closeModal } = useLoginModal()
@@ -31,35 +32,14 @@ export default function LoginModal(){
     if (!password) return setError('Please provide a password')
     setLoading(true)
     try {
-      // health check
-      try {
-        const ping = await fetch('/api/health')
-        if (!ping.ok) throw new Error('health check failed')
-      } catch (pingErr) {
-        setError('Backend unreachable: ' + (pingErr.message || pingErr))
-        setLoading(false)
-        return
-      }
-
-      // prefer relative API (works with Vite proxy). If that returns HTML/404
-      // (e.g. proxy not running), retry directly against the backend.
-      const tryPost = async (url) => fetch(url, {
+      // Always use server-side login
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ email, password })
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ email: String(email || '').trim().toLowerCase(), password })
       })
-
-      // Try backend directly first (more reliable if proxy isn't wired), then try relative path
-      let res = await tryPost('http://127.0.0.1:4000/api/auth/login')
-      let ct = res.headers.get('content-type') || ''
-      if (!res.ok && (res.status === 404 || ct.includes('text/html'))) {
-        // try relative (vite proxy) as a fallback
-        res = await tryPost('/api/auth/login')
-        ct = res.headers.get('content-type') || ''
-      }
       if (!res.ok) {
-        let body = ''
-        try { body = await res.text() } catch (e) {}
+        const body = await res.text().catch(() => '')
         throw new Error(`Login failed: ${res.status} ${res.statusText} (url: ${res.url})\n${body}`)
       }
       const data = await res.json()

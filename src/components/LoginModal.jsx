@@ -49,16 +49,18 @@ export default function LoginModal(){
         body: JSON.stringify({ email, password })
       })
 
-      let res = await tryPost('/api/auth/login')
-      const ct = res.headers.get('content-type') || ''
+      // Try backend directly first (more reliable if proxy isn't wired), then try relative path
+      let res = await tryPost('http://127.0.0.1:4000/api/auth/login')
+      let ct = res.headers.get('content-type') || ''
       if (!res.ok && (res.status === 404 || ct.includes('text/html'))) {
-        // backend may be running elsewhere or proxy not configured; try direct localhost
-        res = await tryPost('http://127.0.0.1:4000/api/auth/login')
+        // try relative (vite proxy) as a fallback
+        res = await tryPost('/api/auth/login')
+        ct = res.headers.get('content-type') || ''
       }
       if (!res.ok) {
         let body = ''
         try { body = await res.text() } catch (e) {}
-        throw new Error(`Login failed: ${res.status} ${res.statusText} ${body}`)
+        throw new Error(`Login failed: ${res.status} ${res.statusText} (url: ${res.url})\n${body}`)
       }
       const data = await res.json()
       setEmail('')

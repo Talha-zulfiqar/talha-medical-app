@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useSignupModal } from '../context/SignupModalContext'
+import { useLoginModal } from '../context/LoginModalContext'
 import { getCurrentUser, clearCurrentUser } from '../lib/auth'
 import Logo from '../assets/logo.svg'
 import ImageOptimized from './ImageOptimized'
@@ -9,6 +10,7 @@ export default function Header() {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const { openModal } = useSignupModal()
+  const { openModal: openLogin } = useLoginModal()
   const [user, setUser] = useState(null)
 
   // close mobile menu on resize to desktop
@@ -60,7 +62,10 @@ export default function Header() {
 
         <div className="actions">
           {!user ? (
-            <button className="btn btn-primary" onClick={() => openModal()}>Get Started</button>
+            <div style={{display:'flex',gap:8}}>
+              <button className="btn btn-primary" onClick={() => openModal()}>Get Started</button>
+              <button className="btn btn-ghost" onClick={() => openLogin()}>Log in</button>
+            </div>
           ) : (
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <Link to="/profile" style={{color:'var(--muted)', textDecoration:'none'}}>Hi, {user.name || user.email}</Link>

@@ -7,13 +7,16 @@ import Articles from './pages/Articles'
 import Community from './pages/Community'
 import Profile from './pages/Profile'
 import SignupModal from './components/SignupModal'
+import LoginModal from './components/LoginModal'
 import { SignupModalProvider } from './context/SignupModalContext'
+import { LoginModalProvider } from './context/LoginModalContext'
 
 export default function App() {
   return (
     <SignupModalProvider>
-      <div className="app">
-        <Header />
+      <LoginModalProvider>
+        <div className="app">
+          <Header />
         <main>
           <Routes>
             <Route path="/" element={<Home />} />
@@ -22,9 +25,11 @@ export default function App() {
             <Route path="/profile" element={<Profile />} />
           </Routes>
         </main>
-        <Footer />
-        <SignupModal />
-      </div>
+          <Footer />
+          <SignupModal />
+          <LoginModal />
+        </div>
+      </LoginModalProvider>
     </SignupModalProvider>
   )
 }

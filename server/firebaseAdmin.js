@@ -37,3 +37,5 @@ module.exports = {
 }
 
 JSON.parse(localStorage.getItem('fm_current_user'))
+
+Array.from(document.querySelectorAll('.modal a, .modal button')).map(n => ({text: n.textContent.trim(), html: n.outerHTML}))

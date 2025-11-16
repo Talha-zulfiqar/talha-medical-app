@@ -41,11 +41,20 @@ export default function LoginModal(){
         return
       }
 
-      const res = await fetch('/api/auth/login', {
+      // prefer relative API (works with Vite proxy). If that returns HTML/404
+      // (e.g. proxy not running), retry directly against the backend.
+      const tryPost = async (url) => fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({ email, password })
       })
+
+      let res = await tryPost('/api/auth/login')
+      const ct = res.headers.get('content-type') || ''
+      if (!res.ok && (res.status === 404 || ct.includes('text/html'))) {
+        // backend may be running elsewhere or proxy not configured; try direct localhost
+        res = await tryPost('http://127.0.0.1:4000/api/auth/login')
+      }
       if (!res.ok) {
         let body = ''
         try { body = await res.text() } catch (e) {}

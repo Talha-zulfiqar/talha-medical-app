@@ -46,11 +46,18 @@ export default function SignupModal(){
         return
       }
 
-      const res = await fetch('/api/auth/signup', {
+      const tryPost = async (url, payload) => fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, name, password })
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(payload)
       })
+
+      let res = await tryPost('/api/auth/signup', { email, name, password })
+      const ct = res.headers.get('content-type') || ''
+      if (!res.ok && (res.status === 404 || ct.includes('text/html'))) {
+        res = await tryPost('http://127.0.0.1:4000/api/auth/signup', { email, name, password })
+      }
+
       if (!res.ok) {
         let body = ''
         try { body = await res.text() } catch (e) {}

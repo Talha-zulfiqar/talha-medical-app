@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useSignupModal } from '../context/SignupModalContext'
 import { useNavigate } from 'react-router-dom'
-import { setCurrentUser } from '../lib/auth'
+import { setAuth } from '../lib/auth'
 
 export default function SignupModal(){
   const { open, closeModal } = useSignupModal()
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const ref = useRef(null)
@@ -31,7 +32,8 @@ export default function SignupModal(){
   async function onSubmit(e){
     e.preventDefault()
     setError(null)
-    if (!email) return setError('Please provide an email')
+  if (!email) return setError('Please provide an email')
+  if (!password) return setError('Please provide a password')
     setLoading(true)
     try {
       // quick health check to show better diagnostics
@@ -44,21 +46,22 @@ export default function SignupModal(){
         return
       }
 
-      const res = await fetch('/api/signup', {
+      const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, name })
+        body: JSON.stringify({ email, name, password })
       })
       if (!res.ok) {
         let body = ''
         try { body = await res.text() } catch (e) {}
         throw new Error(`Server error: ${res.status} ${res.statusText} ${body}`)
       }
-      const data = await res.json()
-      setEmail('')
-      setName('')
-      // persist a lightweight current-user (demo-only)
-      try { setCurrentUser({ id: data.id, email: data.email, name: data.name }) } catch (e) {}
+  const data = await res.json()
+  setEmail('')
+  setName('')
+  setPassword('')
+  // persist token + user
+  try { setAuth({ token: data.token, user: data.user }) } catch (e) {}
       // navigate to community and close modal
       setTimeout(() => {
         closeModal()
@@ -81,6 +84,9 @@ export default function SignupModal(){
           </label>
           <label style={{display:'block',marginBottom:8}}>Email
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input" required />
+          </label>
+          <label style={{display:'block',marginBottom:8}}>Password
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="input" required />
           </label>
           {error && <div style={{color:'#dc2626',marginBottom:8}}>{error}</div>}
           <div className="note">We respect your privacy — we won't share your email. By joining you agree to our Terms and Privacy.</div>

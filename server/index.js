@@ -18,6 +18,25 @@ app.use((req, res, next) => {
 // use lowdb JSON-backed helpers
 const db = require('./db')
 
+const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret'
+
+function requireAuth(req, res, next){
+  const auth = req.headers.authorization || ''
+  const m = auth.match(/^Bearer\s+(.+)$/i)
+  if (!m) return res.status(401).json({ error: 'Missing token' })
+  const token = m[1]
+  try {
+    const payload = jwt.verify(token, JWT_SECRET)
+    req.user = db.getUserById(payload.sub)
+    if (!req.user) return res.status(401).json({ error: 'Invalid token user' })
+    return next()
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid token' })
+  }
+}
+
 // API endpoints
 app.get('/api/articles', (req, res) => {
   const rows = db.getArticles()
@@ -49,6 +68,50 @@ app.post('/api/signup', (req, res) => {
   if (!email) return res.status(400).json({ error: 'Missing email' })
   const item = db.createSignup({ email, name })
   res.status(201).json(item)
+})
+
+// Auth: signup (creates user) — expects { email, name, password }
+app.post('/api/auth/signup', async (req, res) => {
+  const { email, name, password } = req.body
+  if (!email || !password) return res.status(400).json({ error: 'Missing email or password' })
+  const existing = db.findUserByEmail(email)
+  if (existing) return res.status(400).json({ error: 'User already exists' })
+  const passwordHash = await bcrypt.hash(password, 10)
+  const user = db.createUser({ email, name, passwordHash })
+  const token = jwt.sign({ sub: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' })
+  res.status(201).json({ token, user })
+})
+
+// Auth: login
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body
+  if (!email || !password) return res.status(400).json({ error: 'Missing email or password' })
+  const u = db.findUserByEmail(email)
+  if (!u) return res.status(400).json({ error: 'Invalid credentials' })
+  const ok = await bcrypt.compare(password, u.passwordHash || '')
+  if (!ok) return res.status(400).json({ error: 'Invalid credentials' })
+  const { passwordHash: _ph, ...user } = u
+  const token = jwt.sign({ sub: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' })
+  res.json({ token, user })
+})
+
+// Get current user profile
+app.get('/api/me', requireAuth, (req, res) => {
+  const { passwordHash: _ph, ...user } = req.user
+  res.json(user)
+})
+
+// Update user profile (patch) - protected
+app.patch('/api/users/:id', requireAuth, (req, res) => {
+  const id = Number(req.params.id)
+  // only allow user to update their own profile in this demo
+  if (req.user.id !== id) return res.status(403).json({ error: 'Forbidden' })
+  const allowed = ['name', 'bio', 'avatar']
+  const patch = {}
+  for (const k of allowed) if (k in req.body) patch[k] = req.body[k]
+  const updated = db.updateUser(id, patch)
+  if (!updated) return res.status(404).json({ error: 'Not found' })
+  res.json(updated)
 })
 
 // Simple health check for diagnostics (robust: never throws)

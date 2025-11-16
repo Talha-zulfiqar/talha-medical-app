@@ -63,7 +63,7 @@ export default function Header() {
             <button className="btn btn-primary" onClick={() => openModal()}>Get Started</button>
           ) : (
             <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <span style={{color:'var(--muted)'}}>Hi, {user.name || user.email}</span>
+              <Link to="/profile" style={{color:'var(--muted)', textDecoration:'none'}}>Hi, {user.name || user.email}</Link>
               <button className="btn btn-ghost" onClick={() => { clearCurrentUser(); setUser(null); navigate('/') }}>Logout</button>
             </div>
           )}

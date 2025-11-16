@@ -21,6 +21,8 @@ db.defaults({
     { id: 1, title: 'Welcome to the community', body: 'Share tips, ask questions, and connect.', created_at: new Date().toISOString() }
   ]
   ,
+  users: [],
+  // users will have { id, email, name, passwordHash, bio, avatar }
   signups: [
     { id: 1, email: 'hello@example.com', name: '', created_at: new Date().toISOString() }
   ]
@@ -55,6 +57,37 @@ module.exports = {
     return item
   }
   ,
+  // user helpers
+  findUserByEmail(email) {
+    return db.get('users').find({ email }).value()
+  },
+  getUserById(id) {
+    const nid = Number(id)
+    return db.get('users').find({ id: nid }).value()
+  },
+  createUser({ email, name, passwordHash }) {
+    const item = {
+      id: nextId('users'),
+      email,
+      name: name || '',
+      passwordHash: passwordHash || '',
+      bio: '',
+      avatar: '',
+      created_at: new Date().toISOString()
+    }
+    db.get('users').push(item).write()
+    // return copy without passwordHash
+    const { passwordHash: _ph, ...rest } = item
+    return rest
+  },
+  updateUser(id, patch) {
+    const nid = Number(id)
+    db.get('users').find({ id: nid }).assign(patch).write()
+    const user = db.get('users').find({ id: nid }).value()
+    if (!user) return null
+    const { passwordHash: _ph, ...rest } = user
+    return rest
+  },
   // simple signup store
   getSignups() {
     return db.get('signups').sortBy('id').reverse().value()
